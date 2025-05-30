@@ -305,9 +305,24 @@ function setDynamicOgImage(graphemes) {
     ctx.fillText(`${length} slots`, width/2, height-28);
 
     // Set og:image meta tag
-    const meta = document.querySelector('meta[property="og:image"]');
-    if (meta) {
-        meta.setAttribute('content', canvas.toDataURL("image/png"));
+    const metaImage = document.querySelector('meta[property="og:image"]');
+    if (metaImage) {
+        metaImage.setAttribute('content', canvas.toDataURL("image/png"));
+    }
+
+    // Set og:description meta tag based on word length
+    const metaDescription = document.querySelector('meta[property="og:description"]');
+    const descLength = graphemes.length;
+    let description = `Reveal a word!`;
+    if (descLength <= 3) {
+        description = `Short ${descLength}-letter word reveal!`;
+    } else if (descLength <= 7) {
+        description = `Medium ${descLength}-letter word slot machine!`;
+    } else {
+        description = `Long ${descLength}-letter word challenge!`;
+    }
+    if (metaDescription) {
+        metaDescription.setAttribute('content', description);
     }
 }
 
