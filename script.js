@@ -1,23 +1,14 @@
 // Use these functions for emoji/unicode-safe encoding/decoding
 
-function basicEncode(str) {
-    // Shift each char code by +1, then base64 encode as UTF-8
-    const shifted = Array.from(str).map(ch => String.fromCodePoint(ch.codePointAt(0) + 1)).join('');
-    const utf8 = new TextEncoder().encode(shifted);
-    return btoa(String.fromCharCode(...utf8));
-}
-
 function basicDecode(str) {
-    try {
-        const binary = atob(str);
-        const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-        const shifted = new TextDecoder().decode(bytes);
-        // Shift back each code point by -1
-        return Array.from(shifted).map(ch => String.fromCodePoint(ch.codePointAt(0) - 1)).join('');
-    } catch (e) {
-        return '';
-    }
-}
+            console.log(str);
+            try {
+                console.log(decodeURIComponent(escape(atob(str))));
+                return decodeURIComponent(escape(atob(str)));
+            } catch (e) {
+                return '';
+            }
+        }
 
 function getHashParams() {
     // Example hash: #ENCODED&time=2000
@@ -55,27 +46,42 @@ function getSpinSpeedFromHash(defaultSpinSpeed = 50) {
     return (!isNaN(s) && s > 0) ? s : defaultSpinSpeed;
 }
 
-function setResponsiveSlotLengthAttr() {
+function getWordGraphemes() {
+    // Use GraphemeSplitter for accurate emoji/grapheme splitting
     const word = getWordFromHash();
+    if (!word) return [];
+    const splitter = new window.GraphemeSplitter();
+    // Split each line into graphemes, then join with '\n' graphemes between lines
+    const lines = word.split('\n');
+    let graphemes = [];
+    for (let i = 0; i < lines.length; i++) {
+        if (i > 0) graphemes.push('\n'); // preserve line breaks as their own slot
+        graphemes = graphemes.concat(splitter.splitGraphemes(lines[i]));
+    }
+    return graphemes;
+}
+
+function setResponsiveSlotLengthAttr() {
+    const graphemes = getWordGraphemes();
     const slotMachine = document.getElementById('slotMachine');
     const slotMachineContainer = document.querySelector('.slot-machine-container');
-    if (word && slotMachine && slotMachineContainer) {
-        slotMachine.setAttribute('data-length', word.length);
-        slotMachineContainer.setAttribute('data-length', word.length);
+    if (graphemes.length && slotMachine && slotMachineContainer) {
+        slotMachine.setAttribute('data-length', graphemes.length);
+        slotMachineContainer.setAttribute('data-length', graphemes.length);
     }
 }
 
 // Fill the slot machine with boxes and random letters (no animation)
 function prefillSlots() {
-    const word = getWordFromHash();
+    const graphemes = getWordGraphemes();
     const slotMachine = document.getElementById('slotMachine');
     const slotMachineContainer = document.querySelector('.slot-machine-container');
     slotMachine.innerHTML = '';
-    if (!word) return;
+    if (!graphemes.length) return;
     setResponsiveSlotLengthAttr();
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    for (let i = 0; i < word.length; i++) {
-        if (word[i] === ' ') {
+    for (let i = 0; i < graphemes.length; i++) {
+        if (graphemes[i] === ' ' || graphemes[i] === '\n') {
             // Create an invisible spacer that takes up the same width as a slot
             const spacer = document.createElement('div');
             spacer.className = 'slot slot-space';
@@ -86,7 +92,12 @@ function prefillSlots() {
             const slotInner = document.createElement('div');
             slotInner.className = 'slot-inner';
             const charDiv = document.createElement('div');
-            charDiv.textContent = chars[Math.floor(Math.random() * chars.length)];
+            // Use emoji if the grapheme is an emoji, else use random letter/number
+            if (isEmoji(graphemes[i])) {
+                charDiv.textContent = emojiList[Math.floor(Math.random() * emojiList.length)];
+            } else {
+                charDiv.textContent = chars[Math.floor(Math.random() * chars.length)];
+            }
             charDiv.style.height = "100%";
             charDiv.style.width = "100%";
             charDiv.style.display = "flex";
@@ -108,18 +119,18 @@ window.addEventListener('DOMContentLoaded', prefillSlots);
 
 // Only animate on slider pull
 function startSlotMachine() {
-    const word = getWordFromHash();
+    const graphemes = getWordGraphemes();
     const slotMachine = document.getElementById('slotMachine');
     const revealedWord = document.getElementById('revealedWord');
     revealedWord.textContent = '';
     slotMachine.innerHTML = '';
 
-    if (!word) return;
+    if (!graphemes.length) return;
 
     const speed = getRevealSpeedFromHash(); // <-- Get speed from hash
 
-    for (let i = 0; i < word.length; i++) {
-        if (word[i] === ' ') {
+    for (let i = 0; i < graphemes.length; i++) {
+        if (graphemes[i] === ' ' || graphemes[i] === '\n') {
             const spacer = document.createElement('div');
             spacer.className = 'slot slot-space';
             slotMachine.appendChild(spacer);
@@ -128,7 +139,7 @@ function startSlotMachine() {
             slot.className = 'slot';
             slotMachine.appendChild(slot);
 
-            animateSlot(slot, word[i], i * speed); // <-- Use speed here
+            animateSlot(slot, graphemes[i], i * speed); // <-- Use grapheme here
         }
     }
 }
@@ -139,10 +150,14 @@ function animateSlot(slot, letter, delay) {
     const slotInner = document.createElement('div');
     slotInner.className = 'slot-inner';
 
-    // Fill with random characters
+    // Fill with random characters or emojis depending on the revealed letter
     for (let i = 0; i < spinCount; i++) {
         const charDiv = document.createElement('div');
-        charDiv.textContent = chars[Math.floor(Math.random() * chars.length)];
+        if (isEmoji(letter)) {
+            charDiv.textContent = emojiList[Math.floor(Math.random() * emojiList.length)];
+        } else {
+            charDiv.textContent = chars[Math.floor(Math.random() * chars.length)];
+        }
         charDiv.style.height = "100%"; // instead of slot.offsetHeight + "px"
         charDiv.style.width = "100%";
         charDiv.style.display = "flex";
@@ -281,3 +296,15 @@ document.addEventListener('touchend', () => {
     }, 200);
     currentY = 0;
 }, { passive: false });
+
+function isEmoji(grapheme) {
+    // Basic emoji detection (covers most common emojis)
+    // This is not exhaustive but works for most cases
+    return /\p{Emoji}/u.test(grapheme);
+}
+
+const emojiList = [
+    "😀","😃","😄","😁","😆","😅","😂","🤣","😊","😇","🙂","🙃","😉","😌","😍","🥰","😘","😗","😙","😚",
+    "😋","😜","😝","😛","🤑","🤗","🤭","🤫","🤔","🤐","🤨","😐","😑","😶","😏","😒","🙄","😬","🤥","😌",
+    "😔","😪","🤤","😴","😷","🤒","🤕","🤢","🤮","🥵","🥶","🥴","😵","🤯","🤠","🥳","😎","🤓","🧐","😕"
+];

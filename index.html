@@ -72,22 +72,8 @@
         // Use these functions for emoji/unicode-safe encoding/decoding
 
         function basicEncode(str) {
-            // Shift each char code by +1, then base64 encode as UTF-8
-            const shifted = Array.from(str).map(ch => String.fromCodePoint(ch.codePointAt(0) + 1)).join('');
-            const utf8 = new TextEncoder().encode(shifted);
-            return btoa(String.fromCharCode(...utf8));
-        }
-
-        function basicDecode(str) {
-            try {
-                const binary = atob(str);
-                const bytes = Uint8Array.from(binary, c => c.charCodeAt(0));
-                const shifted = new TextDecoder().decode(bytes);
-                // Shift back each code point by -1
-                return Array.from(shifted).map(ch => String.fromCodePoint(ch.codePointAt(0) - 1)).join('');
-            } catch (e) {
-                return '';
-            }
+            // Unicode/emoji-safe base64 encode
+            return btoa(unescape(encodeURIComponent(str)));
         }
 
         document.getElementById('wordForm').addEventListener('submit', function(e) {

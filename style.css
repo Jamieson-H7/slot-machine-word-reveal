@@ -212,6 +212,12 @@ button:hover {
     pointer-events: none;
 }
 
+.slot-word {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  white-space: nowrap;
+}
+
 @media (max-width: 600px), (max-height: 600px) {
     .container {
         min-height: 100vh;
