@@ -147,7 +147,12 @@ function prefillSlots() {
 window.addEventListener('hashchange', prefillSlots);
 
 // Prefill on page load
-window.addEventListener('DOMContentLoaded', prefillSlots);
+window.addEventListener('DOMContentLoaded', () => {
+    prefillSlots();
+    // Set dynamic og:image after slots are determined
+    const graphemes = getWordGraphemes();
+    if (graphemes.length > 0) setDynamicOgImage(graphemes);
+});
 
 // Only animate on slider pull
 function startSlotMachine() {
@@ -262,6 +267,48 @@ function animateSlot(slot, letter, delay) {
         slotInner.style.transition = 'none';
         slotInner.style.transform = 'translateY(0)';
     }, revealTime + delay); // Adjust duration as needed
+}
+
+function setDynamicOgImage(graphemes) {
+    // Create a canvas and draw a simple slot machine preview based on grapheme count
+    const length = graphemes.length;
+    const width = Math.max(320, length * 60);
+    const height = 120;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+
+    // Background
+    ctx.fillStyle = "#232323";
+    ctx.fillRect(0, 0, width, height);
+
+    // Draw slot boxes
+    const slotW = 48, slotH = 72, gap = 12;
+    const startX = (width - (length * slotW + (length - 1) * gap)) / 2;
+    for (let i = 0; i < length; i++) {
+        const x = startX + i * (slotW + gap);
+        ctx.fillStyle = "#e0e0e0";
+        ctx.strokeStyle = "#888";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.roundRect(x, (height-slotH)/2, slotW, slotH, 10);
+        ctx.fill();
+        ctx.stroke();
+    }
+
+    // Draw word length in the center
+    ctx.font = "bold 32px sans-serif";
+    ctx.fillStyle = "#e53935";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(`${length} slots`, width/2, height-28);
+
+    // Set og:image meta tag
+    const meta = document.querySelector('meta[property="og:image"]');
+    if (meta) {
+        meta.setAttribute('content', canvas.toDataURL("image/png"));
+    }
 }
 
 const sliderBtn = document.getElementById('startButton');
