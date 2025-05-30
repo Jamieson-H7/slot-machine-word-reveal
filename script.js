@@ -25,7 +25,13 @@ function getHashParams() {
 // Utility to get the word from the URL hash
 function getWordFromHash() {
     const { encoded } = getHashParams();
-    return basicDecode(encoded || '');
+    if (encoded) {
+        return basicDecode(encoded || '');
+    } else {
+        // Fallback: prompt for input if no encoded word in hash
+        let fallback = window.prompt("Enter a word or emoji to reveal:", "");
+        return fallback || "";
+    }
 }
 
 function getRevealTimeFromHash(defaultTime = 2000) {
@@ -50,13 +56,36 @@ function getWordGraphemes() {
     // Use GraphemeSplitter for accurate emoji/grapheme splitting
     const word = getWordFromHash();
     if (!word) return [];
-    const splitter = new window.GraphemeSplitter();
-    // Split each line into graphemes, then join with '\n' graphemes between lines
-    const lines = word.split('\n');
+    let Splitter = null;
+    // Try to support both CommonJS and browser global
+    if (window.GraphemeSplitter && typeof window.GraphemeSplitter === "function") {
+        Splitter = window.GraphemeSplitter;
+    } else if (
+        window.GraphemeSplitter &&
+        typeof window.GraphemeSplitter === "object" &&
+        typeof window.GraphemeSplitter.default === "function"
+    ) {
+        Splitter = window.GraphemeSplitter.default;
+    }
     let graphemes = [];
+    if (Splitter) {
+        try {
+            const splitter = new Splitter();
+            const lines = word.split('\n');
+            for (let i = 0; i < lines.length; i++) {
+                if (i > 0) graphemes.push('\n');
+                graphemes = graphemes.concat(splitter.splitGraphemes(lines[i]));
+            }
+            return graphemes;
+        } catch (e) {
+            // fallback below
+        }
+    }
+    // Fallback: split by code units (not emoji-safe)
+    const lines = word.split('\n');
     for (let i = 0; i < lines.length; i++) {
-        if (i > 0) graphemes.push('\n'); // preserve line breaks as their own slot
-        graphemes = graphemes.concat(splitter.splitGraphemes(lines[i]));
+        if (i > 0) graphemes.push('\n');
+        graphemes = graphemes.concat(Array.from(lines[i]));
     }
     return graphemes;
 }
