@@ -57,7 +57,7 @@ function getWordGraphemes() {
     const word = getWordFromHash();
     if (!word) return [];
     let Splitter = null;
-    // Try to support both CommonJS and browser global
+    // Try to support both CommonJS and browser global, from either node_modules or root
     if (window.GraphemeSplitter && typeof window.GraphemeSplitter === "function") {
         Splitter = window.GraphemeSplitter;
     } else if (
@@ -66,6 +66,9 @@ function getWordGraphemes() {
         typeof window.GraphemeSplitter.default === "function"
     ) {
         Splitter = window.GraphemeSplitter.default;
+    } else if (window["GraphemeSplitter"] && typeof window["GraphemeSplitter"] === "function") {
+        // fallback if loaded from root as /grapheme-splitter.js
+        Splitter = window["GraphemeSplitter"];
     }
     let graphemes = [];
     if (Splitter) {
